@@ -69,12 +69,7 @@ class Chain:
             return "agent"
 
     def should_continue(self, state: "State") -> Literal["tools", "__end__"]:
-        messages = state["messages"]
-        last_message: AIMessage = messages[-1]
-        if last_message.tool_calls:
-            return "tools"
-        else:
-            return "__end__"
+        return "__end__"
 
     def trim_history(self, messages: list):
         return trim_messages(
