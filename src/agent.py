@@ -30,10 +30,11 @@ logger.setLevel(logging.DEBUG if config.debug else logging.INFO)
 class Chain:
     MAX_LENGTH = 110_000
 
-    def __init__(self, model: str, system_prompt: str) -> None:
+    def __init__(self, model: str, system_prompt: str = "") -> None:
         self.model = model
         self.llm = OllamaLLM(
             model=model, 
+            base_url=f"http://{config.ollama_host}:{config.ollama_port}",
         )
         self.system_prompt = system_prompt
     
@@ -128,7 +129,7 @@ class Chain:
             from redis.asyncio import Redis as AsyncRedis
             checkpointer = AsyncRedisSaver(
                 conn=AsyncRedis(
-                    host=config.redis_url, 
+                    host=config.redis_host, 
                     port=config.redis_port, 
                     db=config.redis_db,
                 ),
