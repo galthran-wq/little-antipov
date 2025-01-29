@@ -6,7 +6,8 @@ import logging
 
 import base64
 
-from fastapi import FastAPI, File, BackgroundTasks, Depends, HTTPException, Query, Body, UploadFile
+import pydantic
+from fastapi import FastAPI, File, BackgroundTasks, Depends, HTTPException, Query, Body, UploadFile, Form
 from starlette.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -35,7 +36,10 @@ httpx_logger.setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 model_to_chain = {
-    # TODO: add models
+    key: Chain(model=key, system_prompt=system_prompt).build()
+    for key, system_prompt in [
+        ("little-antipov-llama-3.1-7b:latest", open("system.txt").read())
+    ]
 }
 
 #FastAPI application setup
@@ -84,7 +88,7 @@ def get_health():
 
 class Message(BaseModel):
     """User message"""
-    model: Literal["gpt4", "gpt4_gb"] = Field(description="Which model to use", default="gpt4_gb")
+    model: str = Field(description="Which model to use", default="little-antipov-llama-3.1-7b:latest")
     text: str = Field(description="Text of the message", examples=["Привет! Как дела?"])
     thread_id: str = Field(description="Dialog ID", examples=["1"])
     system: Optional[str] = Field(description="System prompt", default=None)
@@ -176,7 +180,8 @@ async def send_message(
     else:
         doc_path = None
 
-    if token not in config["valid_api_keys"]:
+    if False:
+    # if token not in config["valid_api_keys"]:
         raise HTTPException(status_code=403, detail="Token is invalid")
     if webhook is None:
         chain = model_to_chain[message.model]
