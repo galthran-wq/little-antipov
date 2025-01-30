@@ -8,6 +8,7 @@ from dataclasses import dataclass, asdict
 import json
 from urllib.parse import urlparse
 from collections import defaultdict
+import asyncio
 
 import requests
 from telegram import Update
@@ -52,19 +53,13 @@ def prep_text(s):
     s = emoji_pattern.sub('', s)
     return s
 
-async def send_text(context: ContextTypes.DEFAULT_TYPE, text, chat_id):
-    current_chunk = []
-    current_len = 0
+async def send_text(context: ContextTypes.DEFAULT_TYPE, text, chat_id, reply_to_message_id=None):
     for line in text.split("\n"):
-        if current_len + len(line) > 4_000:
-            await context.bot.send_message(chat_id=chat_id, text="\n".join(current_chunk))
-            current_chunk = []
-            current_len = 0
-        current_chunk.append(line)
-        current_len += len(line)
-    if len(current_chunk) > 0:
-        await context.bot.send_message(chat_id=chat_id, text="\n".join(current_chunk))
-
+        if line.strip():
+            await context.bot.send_message(chat_id=chat_id, text=line, reply_to_message_id=reply_to_message_id)
+            # Introduce a delay based on the length of the line
+            delay = min(2, len(line) / 20)  # Example: 0.1 seconds per character, capped at 2 seconds
+            await asyncio.sleep(delay)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = f"Я ассистент. Чтобы закончить разговор введи /stop"
@@ -125,10 +120,19 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         # Process the response
         result = json.loads(result)['text']
+        
+        # Check if the response starts with "to {id}"
+        if result.startswith(f"to {id}:"):
+            reply_to_message_id = update.effective_message.message_id
+            result = result[len(f"to {id}:"):].strip()
+        else:
+            reply_to_message_id = None
+
         await send_text(
             context=context,
             chat_id=update.effective_chat.id,
             text=result,
+            reply_to_message_id=reply_to_message_id
         )
     except json.decoder.JSONDecodeError:
         await context.bot.send_message(
