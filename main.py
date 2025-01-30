@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 model_to_chain = {
     key: Chain(model=key, system_prompt=system_prompt).build()
     for key, system_prompt in [
-        ("little-antipov-llama-3.1-7b:latest", open("system.txt").read())
+        ("little-antipov-llama-3.1-7b:latest", open(config.system_prompt_path).read())
     ]
 }
 

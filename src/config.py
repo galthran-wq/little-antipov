@@ -13,6 +13,7 @@ class Config(BaseModel):
     tg_app_id: int = None
     tg_app_hash: str = None
     tg_bot_token: str = None
+    system_prompt_path: str = None
 
     @classmethod
     def from_yaml(cls, path: str):
