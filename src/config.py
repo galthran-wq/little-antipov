@@ -10,6 +10,9 @@ class Config(BaseModel):
     redis_db: int = 0
     ollama_host: str = "ollama"
     ollama_port: int = 11435
+    tg_app_id: int = None
+    tg_app_hash: str = None
+    tg_bot_token: str = None
 
     @classmethod
     def from_yaml(cls, path: str):
