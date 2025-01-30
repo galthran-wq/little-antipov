@@ -1,0 +1,7 @@
+**/*.parquet
+**/*.session
+venv
+.venv
+**/__pycache__
+/results
+/data
