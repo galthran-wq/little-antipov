@@ -36,6 +36,7 @@ class Config(BaseModel):
     load_in_4bit: bool = True # Use 4bit quantization to reduce memory usage. Can be False.
     fourbit_model: Literal[
         "unsloth/Meta-Llama-3.1-8B-bnb-4bit",      # Llama-3.1 2x faster
+        "unsloth/Meta-Llama-3.1-8B-Instruct",
         "unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit",
         "unsloth/Meta-Llama-3.1-70B-bnb-4bit",
         "unsloth/Meta-Llama-3.1-405B-bnb-4bit",    # 4bit for 405b!
@@ -51,13 +52,14 @@ class Config(BaseModel):
         "unsloth/Llama-3.2-3B-Instruct-bnb-4bit",
         "unsloth/Llama-3.2-3B-Instruct"
     ] = "unsloth/Llama-3.2-1B-bnb-4bit"
+    chat_template: Literal["llama-3.1", "chatml"] = "llama-3.1"
     token: str
     r: int = 16
     use_rslora: bool = False
     training_args: dict
     run_name: str
     system_path: str
-    conversations_path: str
+    conversations_paths: List[str]
 
 
 def get_output_dir(config: Config) -> str:
@@ -77,7 +79,7 @@ def convert_to_conversations(example, system_path: str):
     return {
         "conversations": [
             {"from": "system", "value": system},
-        ] + conversation["conversations"],
+        ] + conversation,
     }
 
 
@@ -116,7 +118,9 @@ def main(
     formatting_fn = partial(formatting_prompts_func, tokenizer=tokenizer)
 
     train_conversations = [
-        json.loads(line) for line in open(config.conversations_path, "r").readlines()
+        json.loads(line) 
+        for path in config.conversations_paths
+        for line in open(path, "r").readlines()
     ]
     train_dataset = Dataset.from_dict({"text": train_conversations})
     train_dataset = train_dataset.map(convert_to_conversations, fn_kwargs={"system_path": config.system_path}, remove_columns=train_dataset.column_names)
