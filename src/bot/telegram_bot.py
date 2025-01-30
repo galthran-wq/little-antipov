@@ -28,6 +28,9 @@ SYSTEM = USERNAME = ID = CHAT = range(1)
 user_id_to_dialog_id = {}
 user_id_to_system = {}
 
+def prepare_message_for_antipov_bot(id, message: str):
+    return f"from {id}: {message}"
+
 def prep_text(s):
     import re
     # return text.replace(".", "\.").replace("(", "\(").replace(")", "\)").replace("-", "\-").replace("+", "\+").replace("*", "\*")
@@ -101,7 +104,7 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     files = {
         'message': (None, json.dumps({
             "model": "little-antipov-llama-3.1-7b:latest",
-            "text": text, 
+            "text": prepare_message_for_antipov_bot(id, text), 
             "thread_id": str(user_id_to_dialog_id[id]),
             "system": user_id_to_system.get(id, None),
         })),
