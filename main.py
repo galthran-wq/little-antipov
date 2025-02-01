@@ -23,6 +23,7 @@ from unstructured.cleaners.core import clean_extra_whitespace
 
 from src.agent import Chain
 from src.config import load_config
+from src.retriever import setup_retriever
 
 config = load_config()
 
@@ -36,9 +37,10 @@ httpx_logger.setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 model_to_chain = {
-    key: Chain(model=key, system_prompt=system_prompt).build()
-    for key, system_prompt in [
-        ("little-antipov-llama-3.1-7b:latest", open(config.system_prompt_path).read())
+    key: Chain(model=key, system_prompt=system_prompt, retriever=retriever).build()
+    for key, system_prompt, retriever in [
+        ("llama-3.1-8b", open(config.system_prompt_path).read(), setup_retriever()),
+        ("little-antipov-llama-3.1-7b:latest", open(config.system_prompt_path).read(), None),
     ]
 }
 
