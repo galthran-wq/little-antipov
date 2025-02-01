@@ -8,9 +8,11 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
+      - ~/.cache/huggingface:/root/.cache/huggingface
     depends_on:
       - redis
     environment:
+      - HF_HOME=/root/.cache/huggingface
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - OLLAMA_HOST=ollama
