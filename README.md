@@ -2,6 +2,26 @@
 
 This project provides an end-to-end solution for creating a custom chatbot. It includes utilities for collecting data from Telegram, training a model, and deploying a containerized REST API with a Telegram bot interface.
 
+```
+Lev Morozov, [01.02.2025 22:51]
+в чем смысл жизни
+
+антипов младший, [01.02.2025 22:51]
+ха, а я думал мы сможем поговорить про что-то актуальное. жалею.
+
+Lev Morozov, [01.02.2025 22:51]
+ответь
+
+антипов младший, [01.02.2025 22:51]
+жизнь не имеет смысла, да и вопросы на эту тему уже решены давным-давно.
+
+Lev Morozov, [01.02.2025 22:51]
+зачем тогда продолжать жить
+
+антипов младший, [01.02.2025 22:51]
+потому что интересно.
+```
+
 ## Key Features
 
 1. **Chat-like Design**: The `/message` endpoint accepts a dialogue ID and automatically remembers the context of the dialogue.
