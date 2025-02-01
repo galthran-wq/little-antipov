@@ -60,8 +60,11 @@ class Chain:
         if state.get("system", None):
             system_prompt += f"\n\n{state['system']}"
         if self.retriever is not None:
-            context: List[str] = self.retriever.messages_similarity_search(state["messages"])
-            system_prompt += f"\n\nПримеры диалогов персонажа с пользователем:\n{context}"
+            messages = state["messages"]
+            # truncate dialogue to last 10 messages
+            messages = messages[-10:]
+            context: List[str] = self.retriever.messages_similarity_search(messages)
+            system_prompt += f"\n\nПримеры диалогов персонажа с пользователем:\n{context}\n\nНачинаем диалог, больше не упоминайте про примеры диалогов и о том что мы играем."
         system_prompt = SystemMessage(system_prompt)
         return system_prompt
 
