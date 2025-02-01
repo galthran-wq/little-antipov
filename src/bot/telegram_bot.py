@@ -102,7 +102,7 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Prepare the request data
     files = {
         'message': (None, json.dumps({
-            "model": "little-antipov-llama-3.1-7b:latest",
+            "model": "llama3.1:8b-retrieve-antipov",
             "text": prepare_message_for_antipov_bot(id, text), 
             "thread_id": str(user_id_to_dialog_id[id]),
             "system": user_id_to_system.get(id, None),
@@ -116,12 +116,12 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         files['doc'] = (file_name, document, mimetypes.guess_type(file_name)[0])
 
     # Send the request to the API
-    result = requests.post(
-        url="http://127.0.0.1:8000/message",
-        files=files,
-    ).content.decode()
-
     try:
+        result = requests.post(
+            url="http://127.0.0.1:8000/message",
+            files=files,
+        ).content.decode()
+
         # Process the response
         result = json.loads(result)['text']
         
@@ -138,13 +138,12 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=result,
             reply_to_message_id=reply_to_message_id
         )
-    except json.decoder.JSONDecodeError:
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=f"Ошибка!\n{result}",
-        )
-    except KeyError:
-        print(result)
+    except (json.decoder.JSONDecodeError, KeyError) as e:
+        # Reset the state
+        user_id_to_dialog_id[id] = generate_dialog_id()
+        # Log the error
+        logging.error(f"Error occurred: {e}")
+        await chat(update, context)
 
     return CHAT
 
