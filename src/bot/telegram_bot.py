@@ -175,8 +175,10 @@ if __name__ == '__main__':
     chat_handler = MessageHandler(
         (filters.TEXT | filters.PHOTO | filters.ATTACHMENT) & ~filters.COMMAND, chat
     )
+    reset_handler = CommandHandler('reset', reset)
     # set higher logging level for httpx to avoid all GET and POST requests being logged
     logging.getLogger("httpx").setLevel(logging.WARNING)
     application = ApplicationBuilder().token(token).build()
+    application.add_handler(reset_handler)
     application.add_handler(chat_handler)
     application.run_polling()
