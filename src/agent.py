@@ -21,6 +21,7 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 
 from src.config import load_config
 from .redis_chain_memory import AsyncRedisSaver, RedisSaver
+from .retriever import Retriever
 
 config = load_config()
 logger = logging.getLogger(__name__)
@@ -30,13 +31,14 @@ logger.setLevel(logging.DEBUG if config.debug else logging.INFO)
 class Chain:
     MAX_LENGTH = 110_000
 
-    def __init__(self, model: str, system_prompt: str = "") -> None:
+    def __init__(self, model: str, system_prompt: str = "", retriever: Optional[Retriever] = None) -> None:
         self.model = model
         self.llm = OllamaLLM(
             model=model, 
             base_url=f"http://{config.ollama_host}:{config.ollama_port}",
         )
         self.system_prompt = system_prompt
+        self.retriever = retriever
     
     def _build_docs_chain(self, state: "State"):
         messages: List[BaseMessage] = state["messages"]
@@ -57,6 +59,9 @@ class Chain:
         system_prompt = self.system_prompt
         if state.get("system", None):
             system_prompt += f"\n\n{state['system']}"
+        if self.retriever is not None:
+            context: List[str] = self.retriever.messages_similarity_search(state["messages"])
+            system_prompt += f"\n\nПримеры диалогов персонажа с пользователем:\n{context}"
         system_prompt = SystemMessage(system_prompt)
         return system_prompt
 
@@ -104,8 +109,9 @@ class Chain:
     async def acall_model(self, state: "State", config: RunnableConfig):
         #  TODO: How does it work if graph.astream is used?? It is supposed to wait for the end of the full generation!
         # Somehow it knows that it shouldnt'
+        messages = state["messages"]
         system_prompt = self.get_system_message(state)
-        messages = [system_prompt] + state["messages"]
+        messages = [system_prompt] + messages
         success = False
         while not success:
             try:

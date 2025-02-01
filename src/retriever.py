@@ -1,6 +1,7 @@
 import json
 from typing import List, Optional
 from langchain_community.vectorstores import SKLearnVectorStore
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from langchain_core.embeddings import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from src.config import load_config
@@ -54,7 +55,27 @@ class Retriever:
             doc.page_content
             for doc, _ in self.vector_store.similarity_search_with_score(query, k=k, **kwargs)
         ]
-
+    
+    def messages_similarity_search(
+        self, 
+        messages: list[BaseMessage], 
+        k: Optional[int] = None, 
+        **kwargs
+    ) -> list[str]:
+        # Only keep HumanMessage and AIMessage
+        messages = [message for message in messages if isinstance(message, (HumanMessage, AIMessage))]
+        # Convert messages to strings
+        messages_strings = []
+        for message in messages:
+            if isinstance(message, HumanMessage):
+                messages_strings.append(f"HUMAN: {message.content}")
+            else:
+                messages_strings.append(f"GPT: {message.content}")
+        return self.similarity_search(
+            "\n".join(messages_strings),
+            k=k,
+            **kwargs
+        )
 
 
 def setup_retriever() -> Optional[Retriever]:
