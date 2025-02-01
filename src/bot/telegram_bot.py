@@ -9,6 +9,7 @@ import json
 from urllib.parse import urlparse
 from collections import defaultdict
 import asyncio
+import secrets
 
 import requests
 from telegram import Update
@@ -66,6 +67,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
     return CHAT
 
+def generate_dialog_id():
+    return secrets.token_hex(16)  # Generates a random 32-character hexadecimal string
+
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global user_id_to_dialog_id
     id = update.effective_user.id
@@ -93,7 +97,7 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = update.message.caption  # Add caption if available
     
     if id not in user_id_to_dialog_id:
-        user_id_to_dialog_id[id] = abs(id)
+        user_id_to_dialog_id[id] = generate_dialog_id()
 
     # Prepare the request data
     files = {
@@ -152,9 +156,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global user_id_to_dialog_id
     id = update.effective_user.id
-    if id in user_id_to_dialog_id:
-        import random
-        user_id_to_dialog_id[id] += random.randint(0, 100)
+    user_id_to_dialog_id[id] = generate_dialog_id()
     await context.bot.send_message(chat_id=update.effective_chat.id, text="готово")
 
 async def system(update: Update, context: ContextTypes.DEFAULT_TYPE):
