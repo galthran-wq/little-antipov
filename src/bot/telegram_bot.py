@@ -172,25 +172,11 @@ async def set_system(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == '__main__':
     # Enable logging
-    help_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            CHAT: [MessageHandler((filters.TEXT | filters.PHOTO | filters.ATTACHMENT) & ~filters.COMMAND, chat)],
-        },
-        fallbacks=[CommandHandler("stop", cancel)],
+    chat_handler = MessageHandler(
+        (filters.TEXT | filters.PHOTO | filters.ATTACHMENT) & ~filters.COMMAND, chat
     )
-    system_handler = ConversationHandler(
-        entry_points=[CommandHandler("system", system)],
-        states={
-            SYSTEM: [MessageHandler((filters.TEXT) & ~filters.COMMAND, set_system)],
-        },
-        fallbacks=[CommandHandler("stop", cancel)],
-    )
-    reset_handler = CommandHandler("reset", reset)
     # set higher logging level for httpx to avoid all GET and POST requests being logged
     logging.getLogger("httpx").setLevel(logging.WARNING)
     application = ApplicationBuilder().token(token).build()
-    application.add_handler(help_handler)
-    application.add_handler(system_handler)
-    application.add_handler(reset_handler)
+    application.add_handler(chat_handler)
     application.run_polling()
