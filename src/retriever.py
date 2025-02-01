@@ -1,9 +1,12 @@
+import os
 import json
 from typing import List, Optional
+
 from langchain_community.vectorstores import SKLearnVectorStore
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
-from langchain_core.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.documents import Document
+
 from src.config import load_config
 
 class Retriever:
@@ -14,6 +17,7 @@ class Retriever:
         embedding_model: str = "BAAI/bge-m3",
         device: str = "cpu",
         k: int = 5,
+        persist_path: str = "./data/vector_store",
     ):
         self.conversations_paths = conversations_paths
         self.conversations = [
@@ -25,13 +29,18 @@ class Retriever:
             model_name=embedding_model,
             model_kwargs={"device": device},
             encode_kwargs={"normalize_embeddings": True},
-            show_progress_bar=True,
+            show_progress=True,
         )
         self.documents = self._get_documents()
-        self.vector_store = SKLearnVectorStore.from_documents(self.documents, self.embeddings)
+        if not os.path.exists(persist_path):
+            os.makedirs(os.path.dirname(persist_path), exist_ok=True)
+            self.vector_store = SKLearnVectorStore.from_documents(self.documents, self.embeddings, persist_path=persist_path)
+            self.vector_store.persist()
+        else:
+            self.vector_store = SKLearnVectorStore(persist_path=persist_path, embedding=self.embeddings)
         self.k = k
     
-    def _conversation_to_document(self, conversation: dict) -> List[Document]:
+    def _conversation_to_documents(self, conversation: dict) -> List[Document]:
         context_list = []
         current_context = []
 
@@ -44,8 +53,9 @@ class Retriever:
     
     def _get_documents(self):
         return [
-            self._conversation_to_document(conversation)
+            doc
             for conversation in self.conversations
+            for doc in self._conversation_to_documents(conversation)
         ]
     
     def similarity_search(self, query: str, k: Optional[int] = None, **kwargs) -> list[str]:
