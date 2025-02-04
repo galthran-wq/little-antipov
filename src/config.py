@@ -1,6 +1,14 @@
 import os
 import yaml
 from pydantic import BaseModel
+from typing import Optional
+
+
+class RetrieverConfig(BaseModel):
+    conversations_paths: list[str]
+    embedding_model: str
+    device: str
+    k: int
 
 
 class Config(BaseModel):
@@ -14,6 +22,7 @@ class Config(BaseModel):
     tg_app_hash: str = None
     tg_bot_token: str = None
     system_prompt_path: str = None
+    retriever: Optional[RetrieverConfig] = None
 
     @classmethod
     def from_yaml(cls, path: str):

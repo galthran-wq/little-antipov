@@ -23,6 +23,7 @@ from unstructured.cleaners.core import clean_extra_whitespace
 
 from src.agent import Chain
 from src.config import load_config
+from src.retriever import setup_retriever
 
 config = load_config()
 
@@ -36,9 +37,10 @@ httpx_logger.setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 model_to_chain = {
-    key: Chain(model=key, system_prompt=system_prompt).build()
-    for key, system_prompt in [
-        ("little-antipov-llama-3.1-7b:latest", open(config.system_prompt_path).read())
+    key: Chain(model=key, system_prompt=system_prompt, retriever=retriever).build()
+    for key, system_prompt, retriever in [
+        ("llama-3.1-8b", open(config.system_prompt_path).read(), setup_retriever()),
+        ("little-antipov-llama-3.1-7b:latest", open(config.system_prompt_path).read(), None),
     ]
 }
 
@@ -166,13 +168,21 @@ async def send_message_to_webhook(
 @app.post("/message", description="Send next message to GPT")
 async def send_message(
     background_tasks: BackgroundTasks,
-    message: Message = Body(...), 
+    message: str = Form(...),  # Use Form to handle JSON as a string
     stream: Annotated[bool, Query(description="Send answer by parts")]= False, 
     webhook: Annotated[str | None, Query(description="Webhook, where model answer will be sent", example="http://example.com/accept_message")] = None,
-    token: str = Depends(header_scheme),
+    # token: str = Depends(header_scheme),
     image: Optional[UploadFile] = None,
     doc: Optional[UploadFile] = None,
 ) -> Answer | None:
+    try:
+        message_data = json.loads(message)  # Parse the JSON string
+        message = Message.model_validate(message_data, strict=True)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in message field")
+    except pydantic.ValidationError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid message: {e}")
+    
     if doc is not None:
         with tempfile.NamedTemporaryFile(delete=False, suffix="." + doc.filename.split(".")[-1]) as temp_file:
             temp_file.write(doc.file.read())

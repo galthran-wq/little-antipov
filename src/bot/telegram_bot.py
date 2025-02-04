@@ -9,6 +9,7 @@ import json
 from urllib.parse import urlparse
 from collections import defaultdict
 import asyncio
+import secrets
 
 import requests
 from telegram import Update
@@ -66,6 +67,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
     return CHAT
 
+def generate_dialog_id():
+    return secrets.token_hex(16)  # Generates a random 32-character hexadecimal string
+
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global user_id_to_dialog_id
     id = update.effective_user.id
@@ -93,12 +97,12 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = update.message.caption  # Add caption if available
     
     if id not in user_id_to_dialog_id:
-        user_id_to_dialog_id[id] = abs(id)
+        user_id_to_dialog_id[id] = generate_dialog_id()
 
     # Prepare the request data
     files = {
         'message': (None, json.dumps({
-            "model": "little-antipov-llama-3.1-7b:latest",
+            "model": "llama3.1:8b-retrieve-antipov",
             "text": prepare_message_for_antipov_bot(id, text), 
             "thread_id": str(user_id_to_dialog_id[id]),
             "system": user_id_to_system.get(id, None),
@@ -112,12 +116,12 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         files['doc'] = (file_name, document, mimetypes.guess_type(file_name)[0])
 
     # Send the request to the API
-    result = requests.post(
-        url="http://127.0.0.1:8000/message",
-        files=files,
-    ).content.decode()
-
     try:
+        result = requests.post(
+            url="http://127.0.0.1:8000/message",
+            files=files,
+        ).content.decode()
+
         # Process the response
         result = json.loads(result)['text']
         
@@ -134,13 +138,12 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=result,
             reply_to_message_id=reply_to_message_id
         )
-    except json.decoder.JSONDecodeError:
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=f"Ошибка!\n{result}",
-        )
-    except KeyError:
-        print(result)
+    except (json.decoder.JSONDecodeError, KeyError) as e:
+        # Reset the state
+        user_id_to_dialog_id[id] = generate_dialog_id()
+        # Log the error
+        logging.error(f"Error occurred: {e}")
+        await chat(update, context)
 
     return CHAT
 
@@ -152,9 +155,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global user_id_to_dialog_id
     id = update.effective_user.id
-    if id in user_id_to_dialog_id:
-        import random
-        user_id_to_dialog_id[id] += random.randint(0, 100)
+    user_id_to_dialog_id[id] = generate_dialog_id()
     await context.bot.send_message(chat_id=update.effective_chat.id, text="готово")
 
 async def system(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -171,25 +172,13 @@ async def set_system(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == '__main__':
     # Enable logging
-    help_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            CHAT: [MessageHandler((filters.TEXT | filters.PHOTO | filters.ATTACHMENT) & ~filters.COMMAND, chat)],
-        },
-        fallbacks=[CommandHandler("stop", cancel)],
+    chat_handler = MessageHandler(
+        (filters.TEXT | filters.PHOTO | filters.ATTACHMENT) & ~filters.COMMAND, chat
     )
-    system_handler = ConversationHandler(
-        entry_points=[CommandHandler("system", system)],
-        states={
-            SYSTEM: [MessageHandler((filters.TEXT) & ~filters.COMMAND, set_system)],
-        },
-        fallbacks=[CommandHandler("stop", cancel)],
-    )
-    reset_handler = CommandHandler("reset", reset)
+    reset_handler = CommandHandler('reset', reset)
     # set higher logging level for httpx to avoid all GET and POST requests being logged
     logging.getLogger("httpx").setLevel(logging.WARNING)
     application = ApplicationBuilder().token(token).build()
-    application.add_handler(help_handler)
-    application.add_handler(system_handler)
     application.add_handler(reset_handler)
+    application.add_handler(chat_handler)
     application.run_polling()
